@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>WebSocket Client</title>
+    <style>
+      body {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background-color: #f0f0f0;
+      }
+
+      #messages {
+        width: 80%;
+        max-width: 600px;
+        height: 60vh;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 10px;
+        overflow-y: auto;
+        background-color: #fff;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      #messages p {
+        margin: 5px 0;
+        padding: 8px 12px;
+        border-radius: 4px;
+      }
+
+      .sent {
+        background-color: #d1e7dd;
+        align-self: flex-end;
+      }
+
+      .received {
+        background-color: #f8d7da;
+        align-self: flex-start;
+      }
+
+      #inputForm {
+        display: flex;
+        width: 80%;
+        max-width: 600px;
+      }
+
+      #messageInput {
+        flex: 1;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px 0 0 4px;
+        font-size: 16px;
+        outline: none;
+      }
+
+      #sendButton {
+        padding: 10px 20px;
+        border: none;
+        background-color: #007bff;
+        color: #fff;
+        font-size: 16px;
+        border-radius: 0 4px 4px 0;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+
+      #sendButton:hover {
+        background-color: #0056b3;
+      }
+
+      /* Scrollbar Styling */
+      #messages::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      #messages::-webkit-scrollbar-track {
+        background: #f1f1f1;
+      }
+
+      #messages::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+      }
+
+      #messages::-webkit-scrollbar-thumb:hover {
+        background: #555;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="messages">
+      <!-- Messages will appear here -->
+    </div>
+
+    <form id="inputForm">
+      <input
+        type="text"
+        id="messageInput"
+        placeholder="Type your message here..."
+        autocomplete="off"
+        required
+      />
+      <button type="submit" id="sendButton">Send</button>
+    </form>
+
+    <script>
+      (function () {
+        const messagesDiv = document.getElementById("messages");
+        const inputForm = document.getElementById("inputForm");
+        const messageInput = document.getElementById("messageInput");
+
+        // Establish WebSocket connection
+        const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
+        const wsUrl = wsProtocol + '://' + window.location.host + '/ws';
+        const socket = new WebSocket(wsUrl);
+
+        // Connection opened
+        socket.addEventListener("open", function (event) {
+          appendMessage("Connected to the server.", "received");
+        });
+
+        // Listen for messages
+        socket.addEventListener("message", function (event) {
+          appendMessage(event.data, "received");
+        });
+
+        // Handle connection close
+        socket.addEventListener("close", function (event) {
+          appendMessage("Disconnected from the server.", "received");
+        });
+
+        // Handle errors
+        socket.addEventListener("error", function (event) {
+          appendMessage("WebSocket error occurred.", "received");
+          console.error("WebSocket error:", event);
+        });
+
+        // Form submission to send messages
+        inputForm.addEventListener("submit", function (event) {
+          event.preventDefault(); // Prevent page reload
+
+          const message = messageInput.value.trim();
+          if (message === "") return;
+
+          // Send message to server
+          socket.send(message);
+
+          // Display sent message
+          appendMessage(message, "sent");
+
+          // Clear input field
+          messageInput.value = "";
+          messageInput.focus();
+        });
+
+        // Function to append messages to the messages div
+        function appendMessage(message, type) {
+          const messageElement = document.createElement("p");
+          messageElement.textContent = message;
+          messageElement.className = type;
+          messagesDiv.appendChild(messageElement);
+          messagesDiv.scrollTop = messagesDiv.scrollHeight; // Auto-scroll to the bottom
+        }
+      })();
+    </script>
+  </body>
+</html>

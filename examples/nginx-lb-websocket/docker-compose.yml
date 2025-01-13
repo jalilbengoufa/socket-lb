@@ -1,0 +1,45 @@
+# docker-compose.yml
+
+services:
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "80:80" # Expose port 80
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/html:/usr/share/nginx/html:ro
+    depends_on:
+      - go-server1
+      - go-server2
+      - go-server3
+    networks:
+      - websocket-network
+
+  go-server1:
+    build:
+      context: ./server
+    container_name: go-server1
+    restart: unless-stopped
+    networks:
+      - websocket-network
+
+  go-server2:
+    build:
+      context: ./server
+    container_name: go-server2
+    restart: unless-stopped
+    networks:
+      - websocket-network
+
+  go-server3:
+    build:
+      context: ./server
+    container_name: go-server3
+    restart: unless-stopped
+    networks:
+      - websocket-network
+
+networks:
+  websocket-network:
+    driver: bridge
