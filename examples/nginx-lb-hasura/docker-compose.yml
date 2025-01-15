@@ -1,0 +1,80 @@
+services:
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "80:80" # Expose port 80 for HTTP traffic
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/html:/usr/share/nginx/html:ro
+    depends_on:
+      - hasura1
+      - hasura2
+      - hasura3
+    networks:
+      - hasura-network
+
+  hasura1:
+    image: hasura/graphql-engine:v2.45.1
+    container_name: hasura1
+    restart: unless-stopped
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+      HASURA_GRAPHQL_ADMIN_SECRET: secret
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true" # Set to "false" in production
+      HASURA_GRAPHQL_ENABLE_WEBSOCKETS: "true"
+    depends_on:
+      - postgres
+    ports:
+      - "8080:8080"
+    networks:
+      - hasura-network
+
+  hasura2:
+    image: hasura/graphql-engine:v2.45.1
+    container_name: hasura2
+    restart: unless-stopped
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+      HASURA_GRAPHQL_ADMIN_SECRET: secret
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "false"
+      HASURA_GRAPHQL_ENABLE_WEBSOCKETS: "true"
+    depends_on:
+      - postgres
+    networks:
+      - hasura-network
+
+  hasura3:
+    image: hasura/graphql-engine:v2.45.1
+    container_name: hasura3
+    restart: unless-stopped
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+      HASURA_GRAPHQL_ADMIN_SECRET: secret
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "false"
+      HASURA_GRAPHQL_ENABLE_WEBSOCKETS: "true"
+    depends_on:
+      - postgres
+    networks:
+      - hasura-network
+
+  postgres:
+    image: postgres:14
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    networks:
+      - hasura-network
+
+networks:
+  hasura-network:
+    driver: bridge
+
+volumes:
+  postgres-data:

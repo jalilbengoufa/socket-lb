@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hasura Task Subscription</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #tasks {
+            margin-top: 20px;
+        }
+        .task {
+            padding: 10px;
+            border-bottom: 1px solid #ccc;
+        }
+        .task:last-child {
+            border-bottom: none;
+        }
+        #add-task-form {
+            margin-top: 20px;
+        }
+        #add-task-form input {
+            padding: 8px;
+            width: 200px;
+        }
+        #add-task-form button {
+            padding: 8px 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Hasura Task Subscription</h1>
+
+
+    <div id="tasks">
+        <h2>Tasks</h2>
+        <div id="task-list">
+        </div>
+    </div>
+
+    <div id="add-task-form">
+        <h2>Add New Task</h2>
+        <input type="text" id="task-name" placeholder="Task name" />
+        <button id="add-task-button">Add Task</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/graphql-ws@5.16.2/umd/graphql-ws.min.js"></script>
+    <script>
+        // Configuration
+        const GRAPHQL_HTTP_URL = 'http://localhost/v1/graphql';
+        const GRAPHQL_WS_URL = 'ws://localhost/v1/graphql';
+        const HASURA_ADMIN_SECRET = 'secret'; // Replace with your actual admin secret
+
+        // Initialize the task list
+        const taskList = document.getElementById('task-list');
+
+        // Function to render a task
+        function renderTask(task) {
+            const taskDiv = document.createElement('div');
+            taskDiv.className = 'task';
+            taskDiv.id = `task-${task.id}`;
+            taskDiv.textContent = `ID: ${task.id} | Name: ${task.name}`;
+            taskList.appendChild(taskDiv);
+        }
+
+        // Function to remove a task (in case of deletions)
+        function removeTask(taskId) {
+            const taskDiv = document.getElementById(`task-${taskId}`);
+            if (taskDiv) {
+                taskList.removeChild(taskDiv);
+            }
+        }
+
+
+        // Initialize the WebSocket client
+        const client = graphqlWs.createClient({
+            url: GRAPHQL_WS_URL,
+            connectionParams: {
+                headers: {
+                    'x-hasura-admin-secret': HASURA_ADMIN_SECRET,
+                },
+            },
+            retryAttempts: 5,
+            retryWait: async function randomisedExponentialBackoff(retryCount) {
+                const delay = Math.pow(2, retryCount) * 1000;
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return delay;
+            },
+        });
+
+        // Subscription query
+        const subscriptionQuery = `
+            subscription {
+                task {
+                    id
+                    name
+                }
+            }
+        `;
+
+        // Start the subscription
+        client.subscribe(
+            {
+                query: subscriptionQuery,
+            },
+            {
+                next: (data) => {
+                    const tasks = data.data.task;
+
+                    // Clear the current list
+                    taskList.innerHTML = '';
+
+                    // Render all tasks
+                    tasks.forEach(task => {
+                        renderTask(task);
+                    });
+                },
+                error: (err) => {
+                    console.error('Subscription error:', err);
+                },
+                complete: () => {
+                    console.log('Subscription complete');
+                },
+            }
+        );
+
+        // Add Task Functionality
+        const addTaskButton = document.getElementById('add-task-button');
+        const taskNameInput = document.getElementById('task-name');
+
+        addTaskButton.addEventListener('click', async () => {
+            const taskName = taskNameInput.value.trim();
+            if (!taskName) {
+                alert('Task name cannot be empty.');
+                return;
+            }
+
+            const mutation = `
+                mutation ($name: String!) {
+                    insert_task(objects: { name: $name }) {
+                        returning {
+                            id
+                            name
+                        }
+                    }
+                }
+            `;
+
+            const variables = { name: taskName };
+
+            try {
+                const response = await fetch(GRAPHQL_HTTP_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-hasura-admin-secret': HASURA_ADMIN_SECRET,
+                    },
+                    body: JSON.stringify({ query: mutation, variables }),
+                });
+
+                const result = await response.json();
+
+          
+                if (result.errors) {
+                    console.error('Error adding task:', result.errors);
+                    alert('Failed to add task.');
+                } else {
+                    taskNameInput.value = '';
+                }
+            } catch (error) {
+                console.error('Error adding task:', error);
+                alert('Failed to add task.');
+            }
+        });
+    </script>
+</body>
+</html>

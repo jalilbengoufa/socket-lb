@@ -1,6 +1,6 @@
 # Socket-lb
 
-Load balancing Websocket connections
+Load balancing Hasura websocket connections
 
 ## Requirements
 
